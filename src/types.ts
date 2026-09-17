@@ -7,6 +7,8 @@ export type NumberingPosition = 'bottom-center' | 'bottom-right' | 'top-right';
 export interface ImageFileItem {
   id: string;
   file: File;
+  blob?: Blob;
+  dataUrl?: string;
   name: string;
   size: number;
   sizeFormatted: string;

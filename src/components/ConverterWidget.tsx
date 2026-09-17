@@ -99,7 +99,8 @@ export const ConverterWidget: React.FC<ConverterWidgetProps> = ({ lang }) => {
 
     for (let i = 0; i < files.length; i++) {
       const f = files[i];
-      if (f.type.startsWith('image/')) {
+      const isImage = (f.type && f.type.startsWith('image/')) || /\.(jpe?g|png|webp|bmp|gif|tiff|svg|avif|ico|heic|heif)$/i.test(f.name);
+      if (isImage) {
         if (f.size > 25 * 1024 * 1024) {
           oversizedCount++;
         }
@@ -119,16 +120,33 @@ export const ConverterWidget: React.FC<ConverterWidgetProps> = ({ lang }) => {
     const newItems: ImageFileItem[] = [];
 
     for (const file of validFiles) {
-      const previewUrl = URL.createObjectURL(file);
-      const dimensions = await getImageDimensions(previewUrl);
+      let safeBlob: Blob = file;
+      try {
+        const arrayBuffer = await file.arrayBuffer();
+        if (arrayBuffer && arrayBuffer.byteLength > 0) {
+          safeBlob = new Blob([arrayBuffer], { type: file.type || 'image/jpeg' });
+        }
+      } catch {
+        safeBlob = file;
+      }
+
+      let previewUrl = '';
+      try {
+        previewUrl = URL.createObjectURL(safeBlob);
+      } catch {
+        previewUrl = '';
+      }
+
+      const dimensions = await getImageDimensions(previewUrl, safeBlob);
 
       newItems.push({
         id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
         file,
+        blob: safeBlob,
         name: file.name,
-        size: file.size,
-        sizeFormatted: formatBytes(file.size),
-        type: file.type,
+        size: file.size || safeBlob.size,
+        sizeFormatted: formatBytes(file.size || safeBlob.size),
+        type: file.type || safeBlob.type || 'image/jpeg',
         previewUrl,
         width: dimensions.width,
         height: dimensions.height,
@@ -141,17 +159,37 @@ export const ConverterWidget: React.FC<ConverterWidgetProps> = ({ lang }) => {
     setConversionResult(null);
   };
 
-  const getImageDimensions = (url: string): Promise<{ width: number; height: number }> => {
-    return new Promise((resolve) => {
-      const img = new Image();
-      img.onload = () => {
-        resolve({ width: img.naturalWidth || 800, height: img.naturalHeight || 600 });
-      };
-      img.onerror = () => {
-        resolve({ width: 800, height: 600 });
-      };
-      img.src = url;
-    });
+  const getImageDimensions = async (url: string, blob?: Blob): Promise<{ width: number; height: number }> => {
+    if (blob && typeof window !== 'undefined' && typeof window.createImageBitmap === 'function') {
+      try {
+        const bitmap = await createImageBitmap(blob);
+        const w = bitmap.width;
+        const h = bitmap.height;
+        try {
+          bitmap.close();
+        } catch {
+          // ignore
+        }
+        if (w > 0 && h > 0) return { width: w, height: h };
+      } catch {
+        // Fallback to Image
+      }
+    }
+
+    if (url) {
+      return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => {
+          resolve({ width: img.naturalWidth || 800, height: img.naturalHeight || 600 });
+        };
+        img.onerror = () => {
+          resolve({ width: 800, height: 600 });
+        };
+        img.src = url;
+      });
+    }
+
+    return { width: 800, height: 600 };
   };
 
   const handleDragOver = (e: React.DragEvent) => {
@@ -280,9 +318,17 @@ export const ConverterWidget: React.FC<ConverterWidgetProps> = ({ lang }) => {
         colors: ['#7C3AED', '#EF4444', '#8B5CF6', '#F87171']
       });
     } catch (err: unknown) {
-      console.error(err);
+      console.error('Conversion error:', err);
       setIsConverting(false);
-      setErrorMessage(err instanceof Error ? err.message : 'An error occurred during conversion.');
+      let errorText = 'An error occurred during conversion. Please verify your images and try again.';
+      if (err instanceof Error && err.message) {
+        errorText = err.message;
+      } else if (typeof err === 'string' && err.trim().length > 0) {
+        errorText = err;
+      } else if (err && typeof err === 'object' && 'message' in err && typeof (err as { message: unknown }).message === 'string') {
+        errorText = (err as { message: string }).message;
+      }
+      setErrorMessage(errorText);
     }
   };
 
