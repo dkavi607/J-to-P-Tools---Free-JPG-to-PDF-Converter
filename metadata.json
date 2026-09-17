@@ -1,0 +1,6 @@
+{
+  "name": "J to P Tools - Free JPG to PDF Converter",
+  "description": "Convert JPG to PDF Instantly — Free, Fast & Private client-side tool with batch processing, custom page sizes, margins, and compression.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

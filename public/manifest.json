@@ -1,0 +1,20 @@
+{
+  "id": "/",
+  "name": "J to P Tools - Free JPG to PDF Converter",
+  "short_name": "J to P",
+  "description": "Convert JPG, JPEG, and PNG images to PDF directly in your browser with 100% privacy.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F9FAFB",
+  "theme_color": "#7C3AED",
+  "icons": [
+    {
+      "src": "/icon.svg",
+      "sizes": "192x192 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}
